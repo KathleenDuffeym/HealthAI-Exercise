@@ -1,0 +1,65 @@
+.health-summary {
+  width: min(1100px, 100%);
+  margin: 0 auto;
+  padding: 1.5rem;
+  display: grid;
+  gap: 1rem;
+  box-sizing: border-box;
+}
+
+.card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.75rem;
+  padding: 1rem;
+  text-align: left;
+  overflow-x: auto;
+}
+
+.patient-details {
+  margin: 1rem 0 0;
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.patient-details div {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.patient-details dt {
+  font-weight: 600;
+}
+
+.patient-details dd {
+  margin: 0;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  border-bottom: 1px solid #e5e7eb;
+  padding: 0.5rem;
+  text-align: left;
+}
+
+th {
+  font-weight: 600;
+}
+
+@media (prefers-color-scheme: dark) {
+  .card {
+    background: #111827;
+    border-color: #374151;
+  }
+
+  th,
+  td {
+    border-bottom-color: #374151;
+  }
+}
