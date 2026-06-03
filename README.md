@@ -29,7 +29,8 @@ This project includes:
 
    ```bash
    VITE_FHIR_BASE_URL=https://api.healthex.io/FHIR/R4
-   VITE_PATIENT_ID=<ALLISON_HACKETT_PATIENT_ID_FROM_DOCS>
+   # Use the exact FHIR id shown for "Allison Hackett" in the HealthEx docs test-patient table.
+   VITE_PATIENT_ID=<ALLISON_HACKETT_FHIR_ID>
    ```
 
 3. Start the app:
