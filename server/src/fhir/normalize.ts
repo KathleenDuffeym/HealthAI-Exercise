@@ -10,7 +10,7 @@ import type {
 export interface PatientSummary {
   patient: { name: string; gender?: string; birthDate?: string; age?: number };
   conditions: Array<{ name: string; status?: string; onset?: string }>;
-  allergies: Array<{ name: string; criticality?: string; reaction?: string }>;
+  allergies: Array<{ id?: string; name: string; status?: string; criticality?: string; reaction?: string }>;
   immunizations: Array<{ vaccine: string; date?: string; doseNumber?: number; seriesDoses?: number }>;
   vitals: Array<{ name: string; date?: string; value: string }>;
   labs: Array<{ name: string; date?: string; value: string; referenceRange?: string; flag?: string }>;
@@ -23,10 +23,14 @@ function displayName(concept?: { coding?: Array<{ display?: string }>; text?: st
 function calculateAge(birthDate?: string, asOf = new Date()): number | undefined {
   if (!birthDate) return undefined;
   const dob = new Date(birthDate);
-  let age = asOf.getFullYear() - dob.getFullYear();
+  if (Number.isNaN(dob.getTime())) return undefined;
+  // Read both dates with UTC getters: birthDate is a FHIR date-only value
+  // that parses as UTC midnight, so comparing it against local-time getters
+  // shifts the calendar date back a day in any timezone west of UTC.
+  let age = asOf.getUTCFullYear() - dob.getUTCFullYear();
   const hasHadBirthdayThisYear =
-    asOf.getMonth() > dob.getMonth() ||
-    (asOf.getMonth() === dob.getMonth() && asOf.getDate() >= dob.getDate());
+    asOf.getUTCMonth() > dob.getUTCMonth() ||
+    (asOf.getUTCMonth() === dob.getUTCMonth() && asOf.getUTCDate() >= dob.getUTCDate());
   if (!hasHadBirthdayThisYear) age -= 1;
   return age;
 }
@@ -99,11 +103,17 @@ export function normalizePatientSummary(bundle: FhirBundle): PatientSummary {
       }))
       .sort((a, b) => (b.onset ?? "").localeCompare(a.onset ?? "")),
     allergies: allergies.map((a) => ({
+      id: a.id,
       name: displayName(a.code),
+      status: a.clinicalStatus?.coding?.[0]?.display ?? a.clinicalStatus?.text,
       criticality: a.criticality,
       reaction: a.reaction?.[0]?.manifestation?.[0]?.text,
     })),
+    // FHIR Immunization.status can be "not-done" or "entered-in-error" -
+    // those mean the vaccine was NOT administered, so only "completed"
+    // records should ever be shown or counted as a real dose.
     immunizations: immunizations
+      .filter((i) => i.status === "completed")
       .map((i) => ({
         vaccine: displayName(i.vaccineCode),
         date: i.occurrenceDateTime,

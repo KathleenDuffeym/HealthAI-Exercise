@@ -80,3 +80,49 @@ test("corrective plan excludes up-to-date and not-yet-applicable items", () => {
   assert.ok(!plan.some((s) => s.vaccine === "Influenza"));
   assert.ok(!plan.some((s) => s.vaccine === "Pneumococcal (PCV/PPSV23)"));
 });
+
+test("throws instead of silently returning wrong results when dob is missing", () => {
+  assert.throws(() => {
+    analyzeImmunizationGaps([], { dob: "", asOfDate: "2026-09-05" });
+  }, /Invalid or missing patient\.dob/);
+});
+
+test("throws instead of silently returning wrong results when dob is unparseable", () => {
+  assert.throws(() => {
+    analyzeImmunizationGaps([], { dob: "not-a-date", asOfDate: "2026-09-05" });
+  }, /Invalid or missing patient\.dob/);
+});
+
+test("skips an immunization record with an unparseable date rather than counting it as a valid dose", () => {
+  const gaps = analyzeImmunizationGaps(
+    [{ vaccine: "Tdap", date: "unknown" }],
+    PATIENT_58_WITH_DIABETES
+  );
+  const tdap = gaps.find((g) => g.vaccine === "Tdap/Td");
+  // With the garbage-date record excluded, this must fall back to "no dose on record" (due_now),
+  // not silently report up_to_date because the invalid date failed an interval comparison.
+  assert.equal(tdap?.status, "due_now");
+});
+
+test("does not flag an annual dose as overdue a few days short of a full year (day-of-month aware)", () => {
+  const gaps = analyzeImmunizationGaps(
+    [{ vaccine: "Influenza", date: "2025-09-10" }],
+    { ...PATIENT_58_WITH_DIABETES, asOfDate: "2026-09-05" }
+  );
+  const flu = gaps.find((g) => g.vaccine === "Influenza");
+  assert.equal(flu?.status, "up_to_date");
+});
+
+test("age calculation does not shift a day early right before a birthday (UTC-safe)", () => {
+  // Allison's dob is 1968-04-12. The day before her birthday, in any timezone,
+  // she must still read as one year younger than on her actual birthday.
+  const dayBefore = analyzeImmunizationGaps([], { dob: "1968-04-12", asOfDate: "2033-04-11" });
+  const onBirthday = analyzeImmunizationGaps([], { dob: "1968-04-12", asOfDate: "2033-04-12" });
+  const pneumoBefore = dayBefore.find((g) => g.vaccine === "Pneumococcal (PCV/PPSV23)");
+  const pneumoOn = onBirthday.find((g) => g.vaccine === "Pneumococcal (PCV/PPSV23)");
+  // Turning 65 on 2033-04-12 - the day before, she must not yet be eligible by age alone
+  // (she still qualifies via her diabetes risk condition, which is exactly why this uses
+  // a rule with a risk-condition path - so assert on age-only eligibility text instead).
+  assert.ok(pneumoBefore?.rationale.includes("age 64"));
+  assert.ok(pneumoOn?.rationale.includes("age 65") || pneumoOn?.status !== "not_yet_applicable");
+});

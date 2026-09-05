@@ -54,18 +54,28 @@ interface ScheduleRule {
 
 const RULES = cdcSchedule.rules as ScheduleRule[];
 
+// All date math below reads UTC getters, not local ones. FHIR date-only
+// strings ("1968-04-12") parse as UTC midnight; mixing that with local-time
+// getters shifts the calendar date backward by one day in any timezone west
+// of UTC, which previously made age/interval checks flip a day early.
 function ageAt(dob: string, asOf: Date): number {
   const birth = new Date(dob);
-  let age = asOf.getFullYear() - birth.getFullYear();
+  let age = asOf.getUTCFullYear() - birth.getUTCFullYear();
   const hadBirthday =
-    asOf.getMonth() > birth.getMonth() ||
-    (asOf.getMonth() === birth.getMonth() && asOf.getDate() >= birth.getDate());
+    asOf.getUTCMonth() > birth.getUTCMonth() ||
+    (asOf.getUTCMonth() === birth.getUTCMonth() && asOf.getUTCDate() >= birth.getUTCDate());
   if (!hadBirthday) age -= 1;
   return age;
 }
 
 function monthsBetween(a: Date, b: Date): number {
-  return (b.getFullYear() - a.getFullYear()) * 12 + (b.getMonth() - a.getMonth());
+  let months = (b.getUTCFullYear() - a.getUTCFullYear()) * 12 + (b.getUTCMonth() - a.getUTCMonth());
+  if (b.getUTCDate() < a.getUTCDate()) months -= 1;
+  return months;
+}
+
+function isValidDate(value: string): boolean {
+  return !Number.isNaN(new Date(value).getTime());
 }
 
 function matchesRule(record: ImmunizationRecord, rule: ScheduleRule): boolean {
@@ -90,12 +100,31 @@ export function analyzeImmunizationGaps(
   immunizations: ImmunizationRecord[],
   patient: PatientContext
 ): GapResult[] {
+  if (!patient.dob || !isValidDate(patient.dob)) {
+    throw new Error(
+      `Invalid or missing patient.dob (${JSON.stringify(patient.dob)}). ` +
+        "Age-based vaccine eligibility can't be computed without a valid date of birth - " +
+        "re-check the get_health_summary extraction in SKILL.md step 3 rather than proceeding."
+    );
+  }
+
+  // Records with an unparseable date are excluded rather than silently
+  // treated as valid - a garbage date must not be allowed to count as
+  // evidence a dose was given, since that would report a real gap as
+  // up-to-date. Excluding them instead falls back to each rule's "no dose on
+  // record" branch, which is the conservative direction for a health tool.
+  const validImmunizations = immunizations.filter((imm) => {
+    if (isValidDate(imm.date)) return true;
+    console.warn(`Skipping immunization with unparseable date: ${JSON.stringify(imm)}`);
+    return false;
+  });
+
   const asOf = patient.asOfDate ? new Date(patient.asOfDate) : new Date();
   const age = ageAt(patient.dob, asOf);
   const results: GapResult[] = [];
 
   for (const rule of RULES) {
-    const matches = immunizations
+    const matches = validImmunizations
       .filter((imm) => matchesRule(imm, rule))
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     const mostRecent = matches[0];

@@ -14,14 +14,21 @@ export function AllergiesCard({ allergies }: { allergies: PatientSummary["allerg
     <Card title="Allergies">
       <ul className="list">
         {allergies.map((a) => (
-          <li key={a.name}>
+          <li key={a.id ?? `${a.name}-${a.reaction ?? ""}`}>
             <div className="list-item-main">
               <span className="list-item-title">{a.name}</span>
               {a.criticality && (
                 <span className={`badge badge-criticality-${a.criticality}`}>{a.criticality}</span>
               )}
             </div>
-            {a.reaction && <span className="list-item-meta">Reaction: {a.reaction}</span>}
+            <span className="list-item-meta">
+              {a.reaction && `Reaction: ${a.reaction}`}
+              {a.status && a.status.toLowerCase() !== "active" && (
+                <span className="badge" style={{ marginLeft: "0.5rem" }}>
+                  {a.status}
+                </span>
+              )}
+            </span>
           </li>
         ))}
       </ul>
