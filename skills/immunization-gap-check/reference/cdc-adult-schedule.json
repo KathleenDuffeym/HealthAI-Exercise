@@ -82,6 +82,51 @@
       "type": "verify-history",
       "seriesDosesTotal": 2,
       "notes": "Adults without evidence of immunity or disease history need 2 doses; missing records are common and should be verified, not assumed absent."
+    },
+    {
+      "id": "hpv",
+      "vaccine": "HPV",
+      "matchHints": ["hpv", "human papillomavirus", "gardasil", "cervarix"],
+      "cvxCodes": ["62", "118", "165"],
+      "minAge": 19,
+      "maxAge": 26,
+      "type": "series",
+      "seriesDosesTotal": 2,
+      "notes": "Catch-up recommendation through age 26 (ages 27-45 are shared clinical decision-making, not modeled here - see known limitations). Simplification: ACIP actually requires 3 doses when the first dose was given at age 15+ and only 2 when started earlier; this rule always expects 2, which can under-flag a patient who should have a 3rd dose."
+    },
+    {
+      "id": "meningococcal-acwy",
+      "vaccine": "Meningococcal ACWY",
+      "matchHints": ["meningococcal acwy", "menactra", "menveo", "mcv4", "mpsv4", "meningococcal mcv4p"],
+      "cvxCodes": ["114", "136", "32", "108"],
+      "minAge": 120,
+      "riskConditionMinAge": 0,
+      "riskConditionKeywords": [
+        "asplenia", "no spleen", "complement deficiency", "hiv",
+        "microbiologist", "laboratory personnel routinely exposed to neisseria meningitidis",
+        "military recruit", "college dormitory", "college residence hall", "first-year college housing",
+        "meningitis belt travel"
+      ],
+      "type": "series",
+      "seriesDosesTotal": 1,
+      "notes": "Not a general adult recommendation past the routine adolescent primary+booster (~11-12 and ~16) - minAge is set unreachably high on purpose so this only ever triggers through the risk-condition path. Risk groups: asplenia/complement deficiency/HIV, microbiologists routinely exposed to isolates, first-year college students in residence halls, military recruits, travelers to the meningitis belt. Simplification: real guidance calls for revaccination every 5 years while risk persists, which a single seriesDosesTotal:1 check doesn't capture."
+    },
+    {
+      "id": "meningococcal-b",
+      "vaccine": "Meningococcal B",
+      "matchHints": ["meningococcal b", "menb", "bexsero", "trumenba", "meningococcal b, omv", "meningococcal b, fhbp"],
+      "cvxCodes": ["162", "163"],
+      "minAge": 16,
+      "maxAge": 23,
+      "riskConditionMinAge": 0,
+      "riskConditionKeywords": [
+        "asplenia", "no spleen", "complement deficiency",
+        "microbiologist", "laboratory personnel routinely exposed to neisseria meningitidis",
+        "meningitis outbreak"
+      ],
+      "type": "shared-decision",
+      "intervalMonths": 1200,
+      "notes": "Shared clinical decision-making for ages 16-23 (preferred 16-18) with no ongoing risk factor, or risk-based at any age for asplenia/complement deficiency or routine occupational exposure to isolates (lab personnel specifically - general clinical/healthcare work is NOT itself a standard indication, a common misconception). intervalMonths is set high because this isn't an annual/periodic vaccine like flu - a single documented dose (or shared-decision conversation) doesn't need to repeat."
     }
   ]
 }

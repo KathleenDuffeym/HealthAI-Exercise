@@ -8,6 +8,13 @@ const PATIENT_58_WITH_DIABETES = {
   asOfDate: "2026-09-05",
 };
 
+// 22 years old as of 2026-09-05.
+const YOUNG_ADULT_NO_RISK_FACTORS = {
+  dob: "2004-05-04",
+  conditions: [],
+  asOfDate: "2026-09-05",
+};
+
 test("flags an overdue Tdap booster given more than 10 years since last dose", () => {
   const gaps = analyzeImmunizationGaps(
     [{ vaccine: "Tdap", date: "2015-03-10" }],
@@ -151,4 +158,103 @@ test("age calculation does not shift a day early right before a birthday (UTC-sa
   // a rule with a risk-condition path - so assert on age-only eligibility text instead).
   assert.ok(pneumoBefore?.rationale.includes("age 64"));
   assert.ok(pneumoOn?.rationale.includes("age 65") || pneumoOn?.status !== "not_yet_applicable");
+});
+
+test("HPV: 2 documented doses in the catch-up window reads as up to date", () => {
+  const gaps = analyzeImmunizationGaps(
+    [
+      { vaccine: "HPV, quadrivalent", date: "2018-06-28", cvxCode: "62" },
+      { vaccine: "HPV9", date: "2019-07-15", cvxCode: "165" },
+    ],
+    YOUNG_ADULT_NO_RISK_FACTORS
+  );
+  const hpv = gaps.find((g) => g.vaccine === "HPV");
+  assert.equal(hpv?.status, "up_to_date");
+});
+
+test("HPV: no doses on record in the catch-up window is due now", () => {
+  const gaps = analyzeImmunizationGaps([], YOUNG_ADULT_NO_RISK_FACTORS);
+  const hpv = gaps.find((g) => g.vaccine === "HPV");
+  assert.equal(hpv?.status, "due_now");
+});
+
+test("HPV: not applicable past the 26 catch-up cutoff", () => {
+  const gaps = analyzeImmunizationGaps([], { dob: "1968-04-12", conditions: [], asOfDate: "2026-09-05" });
+  const hpv = gaps.find((g) => g.vaccine === "HPV");
+  assert.equal(hpv?.status, "not_yet_applicable");
+});
+
+test("Meningococcal ACWY: not flagged for a young adult with no documented risk factor", () => {
+  const gaps = analyzeImmunizationGaps([], YOUNG_ADULT_NO_RISK_FACTORS);
+  const menACWY = gaps.find((g) => g.vaccine === "Meningococcal ACWY");
+  assert.equal(menACWY?.status, "not_yet_applicable");
+  // Regression check for the riskConditionMinAge:0-is-falsy bug this rule exposed -
+  // the rationale must still mention the risk-factor path, not silently drop it.
+  assert.match(menACWY?.rationale ?? "", /qualifying risk factor/);
+});
+
+test("Meningococcal ACWY: flagged due_now for a first-year dorm resident with no dose on record", () => {
+  const gaps = analyzeImmunizationGaps([], {
+    ...YOUNG_ADULT_NO_RISK_FACTORS,
+    conditions: ["First-year college dormitory resident"],
+  });
+  const menACWY = gaps.find((g) => g.vaccine === "Meningococcal ACWY");
+  assert.equal(menACWY?.status, "due_now");
+});
+
+test("Meningococcal ACWY: risk-based applicability works regardless of age (not just young adults)", () => {
+  const gaps = analyzeImmunizationGaps([], {
+    dob: "1968-04-12",
+    conditions: ["Asplenia"],
+    asOfDate: "2026-09-05",
+  });
+  const menACWY = gaps.find((g) => g.vaccine === "Meningococcal ACWY");
+  assert.equal(menACWY?.status, "due_now");
+});
+
+test("Meningococcal ACWY: not_yet_applicable still surfaces a documented prior dose instead of implying nothing happened", () => {
+  // Real case found via live testing: a patient can have completed the routine
+  // adolescent MenACWY primary+booster years ago with no ongoing risk factor now -
+  // the rule correctly has no ONGOING recommendation, but must not imply the
+  // patient was never vaccinated when a dose is right there on record.
+  const gaps = analyzeImmunizationGaps(
+    [{ vaccine: "meningococcal MCV4P", date: "2020-08-03", cvxCode: "114" }],
+    YOUNG_ADULT_NO_RISK_FACTORS
+  );
+  const menACWY = gaps.find((g) => g.vaccine === "Meningococcal ACWY");
+  assert.equal(menACWY?.status, "not_yet_applicable");
+  assert.match(menACWY?.rationale ?? "", /prior dose is on record \(2020-08-03\)/);
+});
+
+test("Meningococcal B: shared-decision for a 16-23 year old with no risk factor and no dose", () => {
+  const gaps = analyzeImmunizationGaps([], { dob: "2008-01-01", conditions: [], asOfDate: "2026-09-05" });
+  const menB = gaps.find((g) => g.vaccine === "Meningococcal B");
+  assert.equal(menB?.status, "shared_decision");
+});
+
+test("Meningococcal B: not applicable outside 16-23 with no qualifying occupational risk factor", () => {
+  const gaps = analyzeImmunizationGaps([], YOUNG_ADULT_NO_RISK_FACTORS); // 22, but no risk factor and this is testing >23 case below
+  const older = analyzeImmunizationGaps([], { dob: "1968-04-12", conditions: [], asOfDate: "2026-09-05" });
+  const menB = older.find((g) => g.vaccine === "Meningococcal B");
+  assert.equal(menB?.status, "not_yet_applicable");
+});
+
+test("Meningococcal B: lab-exposure risk factor triggers shared-decision outside the 16-23 age window", () => {
+  const gaps = analyzeImmunizationGaps([], {
+    dob: "1968-04-12",
+    conditions: ["Microbiologist routinely exposed to Neisseria meningitidis isolates"],
+    asOfDate: "2026-09-05",
+  });
+  const menB = gaps.find((g) => g.vaccine === "Meningococcal B");
+  assert.equal(menB?.status, "shared_decision");
+});
+
+test("Meningococcal B: general healthcare employment alone does not trigger it (not a real ACIP indication)", () => {
+  const gaps = analyzeImmunizationGaps([], {
+    dob: "1968-04-12",
+    conditions: ["Works as a hospital nurse"],
+    asOfDate: "2026-09-05",
+  });
+  const menB = gaps.find((g) => g.vaccine === "Meningococcal B");
+  assert.equal(menB?.status, "not_yet_applicable");
 });

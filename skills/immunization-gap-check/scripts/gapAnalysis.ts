@@ -12,7 +12,15 @@ export interface ImmunizationRecord {
 export interface PatientContext {
   /** ISO 8601 date of birth. */
   dob: string;
-  /** Free-text active condition names, e.g. from get_health_summary / get_conditions. */
+  /**
+   * Free-text risk-factor strings matched against each rule's
+   * riskConditionKeywords: active condition names from get_health_summary /
+   * get_conditions (e.g. "Type 2 diabetes mellitus"), AND/OR patient-reported
+   * occupational/lifestyle risk factors that structured EHR data doesn't
+   * reliably capture (e.g. "microbiologist routinely exposed to Neisseria
+   * meningitidis", "first-year college dormitory resident", "military
+   * recruit") - see SKILL.md step 1 for when/how to ask for the latter.
+   */
   conditions?: string[];
   /** Defaults to today; overridable for deterministic tests. */
   asOfDate?: string;
@@ -158,12 +166,21 @@ export function analyzeImmunizationGaps(
       hasQualifyingCondition(patient.conditions, rule.riskConditionKeywords ?? []);
 
     if (!appliesByAge && !appliesByRisk) {
+      // A dose can exist on record even when there's no ONGOING general
+      // recommendation (e.g. a risk-only vaccine like meningococcal ACWY,
+      // given years ago for an adolescent booster or a risk factor that no
+      // longer applies/was never recorded). Don't imply nothing happened.
+      const priorDoseNote = mostRecent
+        ? ` A prior dose is on record (${mostRecent.date}), though it isn't driven by an ongoing recommendation at this age/risk profile.`
+        : "";
       results.push({
         vaccine: rule.vaccine,
         status: "not_yet_applicable",
         rationale: `Not yet indicated at age ${age} (applies at ${rule.minAge}+${
-          rule.riskConditionMinAge ? ` or ${rule.riskConditionMinAge}+ with a qualifying condition` : ""
-        }).`,
+          rule.riskConditionMinAge !== undefined
+            ? ` or ${rule.riskConditionMinAge}+ with a qualifying risk factor`
+            : ""
+        }).${priorDoseNote}`,
         recommendedAction: "No action needed yet.",
         urgency: "none",
         source: rule.notes,

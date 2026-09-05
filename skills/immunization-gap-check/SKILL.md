@@ -23,9 +23,36 @@ skill does not set up that connection - it assumes the `get_immunizations`,
 
 1. **Pull health context.** Call the `get_health_summary` tool (no arguments)
    to get the patient's date of birth, age, and current active conditions.
-   Active conditions matter here because some vaccines (e.g. pneumococcal) are
-   recommended earlier than the general adult age cutoff for people with
-   qualifying chronic conditions like diabetes or COPD.
+   Active conditions matter here because some vaccines (e.g. pneumococcal,
+   meningococcal) are recommended earlier than the general adult age cutoff
+   for people with qualifying chronic conditions like diabetes, COPD, asplenia,
+   or a complement deficiency.
+
+   Some risk-based rules (meningococcal ACWY, meningococcal B) key off
+   occupational or lifestyle risk factors - lab work with meningococcal
+   isolates, military service, first-year college dormitory residency - that
+   HealthEx's structured clinical data does not reliably capture. There is no
+   dedicated "occupation" MCP tool. Before falling back to asking the patient,
+   check `get_labs` for LOINC-coded social-history observations (the tool has
+   been observed returning things like smoking/alcohol/drug-use history and
+   even gender identity this way) - occupation may show up the same way
+   (LOINC `11341-5`) if a provider ever recorded it, but usually won't. If
+   nothing structured turns up and a meningococcal rule would otherwise read
+   `not_yet_applicable` purely for lack of risk-factor data, ask the patient
+   directly with a short yes/no list covering exactly the keywords in
+   `reference/cdc-adult-schedule.json`'s `riskConditionKeywords` for those two
+   rules - this mirrors how a real clinical intake gathers this information,
+   rather than guessing from incomplete records. Fold any "yes" answers into
+   the same `conditions` array passed to the script in step 4 (see that
+   field's JSDoc in `gapAnalysis.ts` - it now holds both structured conditions
+   and patient-reported risk factors, matched the same way).
+
+   One clinically important nuance to get right when asking or explaining
+   results: general clinical/healthcare employment is **not** itself a
+   standard indication for meningococcal B - the real occupational indication
+   is specifically for microbiologists/lab personnel *routinely exposed to
+   isolated N. meningitidis cultures*, a narrower group. Don't imply "I work
+   in a hospital" alone qualifies.
 
 2. **Pull the full immunization history, and keep paging until it says you're
    done.** Call `get_immunizations` with `{"years": 100}` first. In practice
@@ -133,14 +160,22 @@ skill does not set up that connection - it assumes the `get_immunizations`,
 
 ## Known limitations (see repo README for full discussion)
 
-- Vaccine matching prefers CVX codes when present, but only 3 of the 8 rules
-  (influenza, Tdap/Td, zoster) currently carry known CVX codes in
-  `reference/cdc-adult-schedule.json`; the rest still rely on substring
-  matching against a small alias list, so unusual naming in a real record for
-  those could still be missed.
-- The rule set covers the routine adult schedule, not the full ACIP schedule
-  (e.g. travel vaccines, pregnancy-specific timing, or immunocompromised
-  patient variants are out of scope for this demo).
+- Vaccine matching prefers CVX codes when present, but only 6 of the 11 rules
+  (influenza, Tdap/Td, zoster, HPV, meningococcal ACWY, meningococcal B)
+  currently carry known CVX codes in `reference/cdc-adult-schedule.json`; the
+  rest still rely on substring matching against a small alias list, so unusual
+  naming in a real record for those could still be missed.
+- The rule set covers the routine adult schedule plus HPV and meningococcal
+  ACWY/B, not the full ACIP schedule (e.g. travel vaccines, pregnancy-specific
+  timing, or immunocompromised-patient variants are still out of scope).
+- HPV always expects a 2-dose series; ACIP actually requires 3 doses when the
+  first dose was given at age 15+, which isn't modeled - this can under-flag
+  someone who needs a 3rd dose.
+- Meningococcal ACWY/B risk-factor matching depends on either structured
+  condition data or the patient answering directly (see step 1) - if neither
+  happens, a genuinely at-risk patient with no documented risk factor will
+  read as `not_yet_applicable` rather than flagged, since the rule can't know
+  what it was never told.
 - **Verified against a live HealthEx MCP connection** (this section originally
   said it hadn't been - it has been now). That test caught two real gaps
   between the documented example and actual behavior, both now fixed:
