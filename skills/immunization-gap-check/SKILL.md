@@ -36,10 +36,13 @@ skill does not set up that connection - it assumes the `get_immunizations`,
 3. **Extract a structured list.** The MCP tool returns a markdown-formatted
    summary (a prose header plus a table), not JSON. Read that table and
    produce a structured array of `{ "vaccine": "<name as written>", "date":
-   "YYYY-MM-DD" }` objects. Keep vaccine names close to what the source data
-   used (e.g. "Influenza, injectable, quadrivalent") - the matching script
-   does substring matching against known aliases, so minor variation is fine,
-   but don't paraphrase into a different vaccine name.
+   "YYYY-MM-DD", "cvxCode": "<optional>" }` objects. Keep vaccine names close
+   to what the source data used (e.g. "Influenza, injectable, quadrivalent")
+   - the matching script checks `cvxCode` first when present (exact, reliable
+   match against `reference/cdc-adult-schedule.json`'s `cvxCodes`), and falls
+   back to substring matching against known aliases otherwise, so include a
+   CVX code whenever the tool output has one rather than relying on name
+   matching alone.
 
 4. **Run the gap-analysis script.** Write the structured immunization list and
    patient context to a temp JSON file shaped like:
@@ -92,8 +95,11 @@ skill does not set up that connection - it assumes the `get_immunizations`,
 
 ## Known limitations (see repo README for full discussion)
 
-- Vaccine matching is substring-based against a small alias list, not
-  CVX/SNOMED codes - unusual naming in a real record could be missed.
+- Vaccine matching prefers CVX codes when present, but only 3 of the 8 rules
+  (influenza, Tdap/Td, zoster) currently carry known CVX codes in
+  `reference/cdc-adult-schedule.json`; the rest still rely on substring
+  matching against a small alias list, so unusual naming in a real record for
+  those could still be missed.
 - The rule set covers the routine adult schedule, not the full ACIP schedule
   (e.g. travel vaccines, pregnancy-specific timing, or immunocompromised
   patient variants are out of scope for this demo).

@@ -1,13 +1,3 @@
-export interface PatientSummary {
-  patient: { name: string; gender?: string; birthDate?: string; age?: number };
-  conditions: Array<{ name: string; status?: string; onset?: string }>;
-  allergies: Array<{ id?: string; name: string; status?: string; criticality?: string; reaction?: string }>;
-  immunizations: Array<{ vaccine: string; date?: string; doseNumber?: number; seriesDoses?: number }>;
-  vitals: Array<{ name: string; date?: string; value: string }>;
-  labs: Array<{ name: string; date?: string; value: string; referenceRange?: string; flag?: string }>;
-}
-
-export interface SummaryResponse {
-  summary: PatientSummary;
-  source: "live" | "synthetic-fixture";
-}
+// Re-exported from the single shared definition server/src/fhir/normalize.ts
+// also imports, so the frontend and backend can't drift out of sync silently.
+export type { PatientSummary, SummaryResponse } from "../../shared/patient-summary.js";

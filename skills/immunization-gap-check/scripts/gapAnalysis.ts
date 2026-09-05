@@ -5,6 +5,8 @@ export interface ImmunizationRecord {
   vaccine: string;
   /** ISO 8601 date (YYYY-MM-DD or full timestamp). */
   date: string;
+  /** Optional CVX code, when available - matched in preference to the free-text name. */
+  cvxCode?: string;
 }
 
 export interface PatientContext {
@@ -39,6 +41,8 @@ interface ScheduleRule {
   id: string;
   vaccine: string;
   matchHints: string[];
+  /** CVX codes, when known - checked before matchHints since they're an exact, reliable match. */
+  cvxCodes?: string[];
   minAge: number;
   maxAge?: number;
   type: "annual" | "primary-then-periodic" | "series" | "shared-decision" | "verify-history";
@@ -79,6 +83,7 @@ function isValidDate(value: string): boolean {
 }
 
 function matchesRule(record: ImmunizationRecord, rule: ScheduleRule): boolean {
+  if (record.cvxCode && rule.cvxCodes?.includes(record.cvxCode)) return true;
   const name = record.vaccine.toLowerCase();
   return rule.matchHints.some((hint) => name.includes(hint));
 }

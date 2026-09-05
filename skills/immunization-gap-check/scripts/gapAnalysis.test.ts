@@ -17,6 +17,17 @@ test("flags an overdue Tdap booster given more than 10 years since last dose", (
   assert.equal(tdap?.status, "overdue");
 });
 
+test("matches a vaccine by CVX code even when its brand-name display text hits no substring alias", () => {
+  // "Adacel" is a real Tdap brand name containing none of the matchHints
+  // ("tdap", "td (tetanus", "tetanus") - only the CVX code identifies it.
+  const gaps = analyzeImmunizationGaps(
+    [{ vaccine: "Adacel", date: "2015-03-10", cvxCode: "115" }],
+    PATIENT_58_WITH_DIABETES
+  );
+  const tdap = gaps.find((g) => g.vaccine === "Tdap/Td");
+  assert.equal(tdap?.status, "overdue");
+});
+
 test("flags an incomplete Shingrix series when only 1 of 2 doses is on record", () => {
   const gaps = analyzeImmunizationGaps(
     [{ vaccine: "Shingrix", date: "2021-01-10" }],

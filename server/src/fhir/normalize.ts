@@ -1,3 +1,4 @@
+import type { PatientSummary } from "../../../shared/patient-summary.js";
 import type {
   AllergyIntoleranceResource,
   ConditionResource,
@@ -7,17 +8,14 @@ import type {
   PersonResource,
 } from "./types.js";
 
-export interface PatientSummary {
-  patient: { name: string; gender?: string; birthDate?: string; age?: number };
-  conditions: Array<{ name: string; status?: string; onset?: string }>;
-  allergies: Array<{ id?: string; name: string; status?: string; criticality?: string; reaction?: string }>;
-  immunizations: Array<{ vaccine: string; date?: string; doseNumber?: number; seriesDoses?: number }>;
-  vitals: Array<{ name: string; date?: string; value: string }>;
-  labs: Array<{ name: string; date?: string; value: string; referenceRange?: string; flag?: string }>;
-}
+export type { PatientSummary };
 
 function displayName(concept?: { coding?: Array<{ display?: string }>; text?: string }): string {
   return concept?.text ?? concept?.coding?.[0]?.display ?? "Unknown";
+}
+
+function cvxCode(concept?: { coding?: Array<{ system?: string; code?: string }> }): string | undefined {
+  return concept?.coding?.find((c) => c.system?.includes("cvx"))?.code;
 }
 
 function calculateAge(birthDate?: string, asOf = new Date()): number | undefined {
@@ -119,6 +117,7 @@ export function normalizePatientSummary(bundle: FhirBundle): PatientSummary {
         date: i.occurrenceDateTime,
         doseNumber: i.protocolApplied?.[0]?.doseNumberPositiveInt,
         seriesDoses: i.protocolApplied?.[0]?.seriesDosesPositiveInt,
+        cvxCode: cvxCode(i.vaccineCode),
       }))
       .sort((a, b) => (b.date ?? "").localeCompare(a.date ?? "")),
     vitals: vitals.sort((a, b) => (b.date ?? "").localeCompare(a.date ?? "")),
