@@ -27,22 +27,60 @@ skill does not set up that connection - it assumes the `get_immunizations`,
    recommended earlier than the general adult age cutoff for people with
    qualifying chronic conditions like diabetes or COPD.
 
-2. **Pull the full immunization history.** Call `get_immunizations` with
-   `{"years": 100}` (or another very large number) to get the patient's
-   *entire* history, not just the tool's 3-year default - the task asks for
-   gaps "from all time," and childhood vaccines matter for adult schedule
-   compliance (MMR, varicella).
+2. **Pull the full immunization history, and keep paging until it says you're
+   done.** Call `get_immunizations` with `{"years": 100}` first. In practice
+   the tool paginates in ~3-year windows and its response includes an explicit
+   instruction when there's more: a `"More data available: Yes"` flag plus the
+   exact next call to make, e.g. `get_immunizations(beforeDate="2023-09-04",
+   years=97)`. Keep following that instruction - calling again with the
+   `beforeDate`/`years` values it gives you - until a response says the
+   requested window is "Fully covered" or omits the "more data available"
+   flag. Stopping after one call only gets ~3 years of history; the task asks
+   for gaps "from all time," and childhood vaccines matter for adult schedule
+   compliance (MMR, varicella), which usually means paging all the way back to
+   the patient's date of birth.
 
-3. **Extract a structured list.** The MCP tool returns a markdown-formatted
-   summary (a prose header plus a table), not JSON. Read that table and
-   produce a structured array of `{ "vaccine": "<name as written>", "date":
-   "YYYY-MM-DD", "cvxCode": "<optional>" }` objects. Keep vaccine names close
-   to what the source data used (e.g. "Influenza, injectable, quadrivalent")
-   - the matching script checks `cvxCode` first when present (exact, reliable
-   match against `reference/cdc-adult-schedule.json`'s `cvxCodes`), and falls
-   back to substring matching against known aliases otherwise, so include a
-   CVX code whenever the tool output has one rather than relying on name
-   matching alone.
+3. **Extract a structured list.** The MCP tool's real output is *not*
+   markdown - it's a compact, dictionary-compressed columnar format designed
+   to save tokens, roughly:
+
+   ```
+   #Immunizations 100y|Total:6
+   D:1=2026-01-15|2=2020-03-02|
+   I:1=Tdap|2=influenza, unspecified formulation|
+   S:1=completed|
+   Date|Immunization|Status|...|CVX|NDC|SNOMED|PreferredCode|PreferredSystem|...
+   @1|@1|@1||...|115|...
+   |@2|@1||...||...||88|urn:oid:2.16.840.1.113883.12.292|...
+   ```
+
+   Read it like this: the `D:`/`I:`/`S:` lines are per-column dictionaries: an
+   `@N` in a data row looks up value `N` from that column's dictionary (so
+   `@1` in the `Date` column means `D:1`'s value). An **empty cell in the Date
+   column means "same date as the row above."** The real column list is much
+   wider than what's shown in HealthEx's own docs example - a dedicated `CVX`
+   column exists but is very often empty; when it is, check `PreferredCode`
+   paired with `PreferredSystem` - if `PreferredSystem` is
+   `urn:oid:2.16.840.1.113883.12.292` or `http://hl7.org/fhir/sid/cvx`, then
+   `PreferredCode` **is** the CVX code, just filed under a different column
+   name. Use it.
+
+   From this, build a structured array of `{ "vaccine": "<name as written>",
+   "date": "YYYY-MM-DD", "cvxCode": "<optional>" }` objects. Keep vaccine
+   names close to what the source data used - the matching script checks
+   `cvxCode` first when present (exact, reliable match against
+   `reference/cdc-adult-schedule.json`'s `cvxCodes`), and falls back to
+   substring matching against known aliases otherwise, so include a CVX code
+   whenever you can resolve one rather than relying on name matching alone.
+
+   **Expect a lot of duplicate rows for the same real dose** - in testing
+   against a live connection, the same administration event routinely appears
+   3-6 times in a row (evidently once per connected source system reporting
+   it). You don't need to dedupe these yourself: `analyzeImmunizationGaps`
+   deduplicates by `(cvxCode ?? vaccine, date)` internally specifically because
+   this is real, observed MCP behavior, not a hypothetical - but don't let the
+   repetition make you think there are more distinct doses than there are
+   when eyeballing the raw output.
 
 4. **Run the gap-analysis script.** Write the structured immunization list and
    patient context to a temp JSON file shaped like:
@@ -103,9 +141,11 @@ skill does not set up that connection - it assumes the `get_immunizations`,
 - The rule set covers the routine adult schedule, not the full ACIP schedule
   (e.g. travel vaccines, pregnancy-specific timing, or immunocompromised
   patient variants are out of scope for this demo).
-- This was built and unit-tested without a live HealthEx MCP connection
-  (no Claude Pro/Max + HealthEx access code was available for this exercise) -
-  step 3's markdown-parsing behavior is based on the documented example
-  response shape in `docs.healthex.io/api-documentation/mcp-server/mcp-access`,
-  not a live call. It should be re-verified against a real connection before
-  production use.
+- **Verified against a live HealthEx MCP connection** (this section originally
+  said it hadn't been - it has been now). That test caught two real gaps
+  between the documented example and actual behavior, both now fixed:
+  the real response format is a dictionary-compressed columnar format, not
+  the markdown table HealthEx's own docs example shows (step 3 above is
+  rewritten to match reality); and the real tool returns several duplicate
+  rows per actual dose, which `analyzeImmunizationGaps` now dedupes
+  internally rather than trusting the extraction step to do it perfectly.

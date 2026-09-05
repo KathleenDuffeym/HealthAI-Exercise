@@ -16,9 +16,11 @@ Rather than guess at fabricated real IDs or claim to have tested against a live 
 
 - Built the FHIR client to call the real API when credentials exist (`HEALTHEX_TOKEN` env var), and otherwise fall back to a synthetic patient named Allison Hackett that I constructed to match the exact FHIR R4 resource shapes shown in the docs (`server/src/fixtures/allison-hackett-bundle.json`). The rest of the pipeline — fetch → normalize → render — runs identically either way; only `fetchPatientEverything` branches.
 - Designed her record with deliberate immunization gaps (see below) so the gap-checker in Part 1.3 has something real to find, rather than an empty "all good" result.
-- Wrote the Claude Skill against the MCP tool contracts and example responses documented at `docs.healthex.io/api-documentation/mcp-server/mcp-tools` and `.../mcp-access`, and unit-tested its core logic standalone — but I was not able to run it against a live MCP connection, and I say so explicitly in the skill's own README section rather than implying otherwise.
+- Wrote the Claude Skill against the MCP tool contracts and example responses documented at `docs.healthex.io/api-documentation/mcp-server/mcp-tools` and `.../mcp-access`, and unit-tested its core logic standalone.
 
-If you can share a real API key/secret or an MCP access code, both paths are wired to work as-is — just set `HEALTHEX_TOKEN` in `server/.env` and re-point the skill's tool calls at a live connection.
+**Update: since first writing this, I connected the HealthEx connector to my own Claude account and ran the skill live against my own real connected health records** (the FHIR/WebUI path still runs on the synthetic fixture above, since I never did get org API credentials for that path). That live test caught two real gaps between HealthEx's documented example and actual behavior — both are now fixed and covered by regression tests, see "Data quality issues observed" below. I did not commit any of my real health data anywhere in this repo; only the two structural bugs it exposed.
+
+If you can share a real API key/secret for the FHIR path, it's wired to work as-is — just set `HEALTHEX_TOKEN` in `server/.env`.
 
 ## Setup & Run
 
@@ -55,28 +57,33 @@ npm test          # runs the rule-matching unit tests
 npm run check -- path/to/input.json   # runs the CLI directly against a JSON input
 ```
 
-See [`skills/immunization-gap-check/SKILL.md`](skills/immunization-gap-check/SKILL.md) for how Claude is meant to invoke this — it calls the HealthEx MCP tools `get_health_summary` and `get_immunizations`, extracts a structured list from their markdown output, and hands it to this script for deterministic date math and rule matching.
+See [`skills/immunization-gap-check/SKILL.md`](skills/immunization-gap-check/SKILL.md) for how Claude is meant to invoke this — it calls the HealthEx MCP tools `get_health_summary` and `get_immunizations`, extracts a structured list from their (real format, not markdown — see SKILL.md) output, and hands it to this script for deterministic date math and rule matching. This has now been run live against a real HealthEx MCP connection, not just unit-tested in isolation.
 
-## Data quality issue observed (stretch goal)
+## Data quality issues observed (stretch goal)
 
-Allison's synthetic record — modeled on how real EHR exports typically look — has **no MMR, varicella, or other childhood immunization records at all**, despite being an adult born after 1957 (so she isn't covered by the CDC's presumed-immunity cutoff). This is a very common real-world gap: childhood vaccination records often live on paper at a pediatrician's office that never digitized, or in a state immunization registry the current health system never queried, not because the vaccine was never given.
+**1. Missing childhood records aren't the same as missing vaccinations.** Allison's synthetic record — modeled on how real EHR exports typically look — has no MMR, varicella, or other childhood immunization records at all, despite being an adult born after 1957 (so she isn't covered by the CDC's presumed-immunity cutoff). This is a very common real-world gap: childhood vaccination records often live on paper at a pediatrician's office that never digitized, or in a state immunization registry the current health system never queried, not because the vaccine was never given.
 
-The skill treats this case as its own status (`verify_history`), distinct from `due_now`, specifically so it doesn't tell a patient "you're missing your MMR shots" when the more likely truth is "your record doesn't have them." In production I'd want HealthEx to:
+The skill treats this case as its own status (`verify_history`), distinct from `due_now`, specifically so it doesn't tell a patient "you're missing your MMR shots" when the more likely truth is "your record doesn't have them."
+
+**2. Confirmed live: the same real dose gets reported multiple times.** When I ran the skill against my own real HealthEx-connected data, `get_immunizations` returned the *same* administration event 3-6 times in a row — evidently once per connected source system reporting it (e.g. a hospital EHR and a pharmacy feed both reporting the same flu shot). Before I caught this, `analyzeImmunizationGaps`'s dose-counting for series/verify-history rules (MMR, varicella, Shingrix, Hepatitis B) would have silently overcounted — 6 duplicate rows of the same MMR dose would read as "6 doses given," masking a real incomplete series instead of flagging it. Fixed by deduplicating on `(cvxCode ?? vaccine, date)` inside `analyzeImmunizationGaps` itself (`skills/immunization-gap-check/scripts/gapAnalysis.ts`) rather than trusting the LLM extraction step to always dedupe correctly — see the regression test in `gapAnalysis.test.ts` that reproduces this with 4 duplicate rows of one dose.
+
+In production I'd want HealthEx to:
 
 - Cross-check against state Immunization Information Systems (IIS) before treating a record as authoritative — HealthEx's `update_records` / TEFCA scan (documented in the MCP tools reference) is the right mechanism, just not something a single FHIR pull can substitute for.
 - Surface a confidence/provenance field per Immunization resource (was this pulled from a connected EHR, a CCDA import, or self-reported?) so downstream consumers like this skill can calibrate how hard to push a "gap."
+- De-duplicate multi-source records server-side (in the MCP tool itself), rather than leaving every consumer of `get_immunizations` to discover and handle this independently.
 
 ## Tradeoffs & decisions
 
 - **TypeScript everywhere**, matching what HealthEx uses in production, with a plain Express backend and a small React (Vite) frontend rather than a meta-framework — the app is one screen with one API call, so Next.js/Remix would be pure overhead here.
 - **Synthetic-but-schema-accurate fixture** instead of either (a) hardcoding fake resource types loosely, or (b) blocking the whole exercise on getting HealthEx credentials. I picked accuracy over speed here: every field in the fixture matches the real FHIR shapes shown in the docs, so swapping in a real token requires zero code changes.
 - **Deterministic script + LLM extraction split** in the skill, instead of asking the model to do the date math and rule matching itself. MCP tool responses are markdown prose, which an LLM is good at reading, but "how many months since October 2024" and "which rule threshold does 58 cross" are exactly the kind of arithmetic LLMs get subtly wrong under summarization pressure. Splitting it this way makes the recommendation reproducible and testable (9 unit tests on the rule engine), at the cost of an extra process-boundary hop.
-- **String/substring matching for vaccine names and risk conditions** (`gapAnalysis.ts`) rather than structured CVX/SNOMED codes. This is the biggest simplification in the whole exercise — real records have far messier vaccine naming than my fixture does. It was the right call for a 2-4 hour exercise; it would not be the right call in production (see below).
+- **CVX-code matching where available, substring matching as fallback** (`gapAnalysis.ts`) rather than pure string matching. Only 3 of the 8 CDC rules (influenza, Tdap/Td, zoster) have known CVX codes populated in `reference/cdc-adult-schedule.json`; the rest still rely on substring aliases. Real vaccine naming turned out to be messier than my fixture even accounted for (e.g. "Pfizer SARS-CoV-2 Vaccine 12+ Yrs (Purple Cap)" as a display name, from live testing) — exactly the case CVX matching is meant to handle instead of guessing at every possible brand name string.
 - **Only the routine adult schedule**, not the full ACIP schedule (pregnancy, travel, immunocompromised variants, pediatric schedule). Allison is a straightforward adult case; scoping the rule set to match her avoided building CDC-schedule branches I couldn't exercise or test.
 
 ## What I'd do differently with more time
 
-- Replace substring vaccine matching with actual CVX code matching (the FHIR docs already show `vaccineCode.coding[].system: "http://hl7.org/fhir/sid/cvx"` — I used the code in the fixture but only matched on display text in the skill, which is the weaker of the two signals I had available).
-- Get a real MCP connection (once I have a Pro/Max seat + access code) and re-verify the markdown-parsing assumption in `SKILL.md` step 3 against actual tool output instead of the documented example.
-- Add pagination handling to the FHIR client — the docs describe `_count`/`next` links for `$everything`, and my client currently assumes a single page, which is fine for a synthetic 12-resource bundle but wouldn't survive a real patient's full history.
+- Extend CVX-code matching to the remaining 5 CDC rules (pneumococcal, Hepatitis B, COVID-19, MMR, varicella) — I only populated codes for the 3 rules I could verify against fixture/live data directly; the rest still lean on substring aliases.
+- Add pagination handling to the FHIR **client** (`server/src/fhir/client.ts`) the same way the MCP skill now handles it — the docs describe `_count`/`next` links for `$everything`, and the client currently assumes a single page, which is fine for a synthetic 12-resource bundle but wouldn't survive a real patient's full history. (The MCP path already had to solve this for real, since `get_immunizations` paginates in ~3-year windows — see SKILL.md step 2.)
+- Get real HealthEx org API credentials and re-run the same live-validation pass against the FHIR/WebUI path that I was able to do for the MCP skill path — right now only one of the two integration paths has been proven against a real server.
 - Show the immunization-gap results inside the WebUI itself (a "check for gaps" button calling the same logic), rather than keeping the two deliverables fully separate — I kept them apart mainly so the two parts of the exercise stayed easy to review independently, but a real patient-facing product would obviously want this in one place.

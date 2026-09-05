@@ -28,6 +28,21 @@ test("matches a vaccine by CVX code even when its brand-name display text hits n
   assert.equal(tdap?.status, "overdue");
 });
 
+test("deduplicates repeated rows for the same dose (as returned by real HealthEx MCP output) instead of overcounting a series", () => {
+  // The live MCP tool returns several duplicate rows per actual dose - one
+  // per connected source system reporting the same administration event.
+  const shingrixDose1Reported4Times = Array.from({ length: 4 }, () => ({
+    vaccine: "Shingrix",
+    date: "2021-01-10",
+    cvxCode: "187",
+  }));
+  const gaps = analyzeImmunizationGaps(shingrixDose1Reported4Times, PATIENT_58_WITH_DIABETES);
+  const shingrix = gaps.find((g) => g.vaccine === "Zoster (Shingrix)");
+  // 4 duplicate rows of the SAME dose must still read as 1 dose, not 4.
+  assert.equal(shingrix?.status, "incomplete_series");
+  assert.match(shingrix?.rationale ?? "", /1 of 2 doses/);
+});
+
 test("flags an incomplete Shingrix series when only 1 of 2 doses is on record", () => {
   const gaps = analyzeImmunizationGaps(
     [{ vaccine: "Shingrix", date: "2021-01-10" }],

@@ -118,10 +118,25 @@ export function analyzeImmunizationGaps(
   // evidence a dose was given, since that would report a real gap as
   // up-to-date. Excluding them instead falls back to each rule's "no dose on
   // record" branch, which is the conservative direction for a health tool.
-  const validImmunizations = immunizations.filter((imm) => {
+  const dateValidImmunizations = immunizations.filter((imm) => {
     if (isValidDate(imm.date)) return true;
     console.warn(`Skipping immunization with unparseable date: ${JSON.stringify(imm)}`);
     return false;
+  });
+
+  // The real HealthEx MCP output was found (in live testing) to return
+  // several duplicate rows per actual dose - the same administration
+  // reported once per connected source system feeding that record. Without
+  // deduplicating, "series"/"verify-history" rules would overcount doses
+  // (e.g. a 2-dose MMR series reported 6+ times looks like "6 doses given").
+  // Dedupe by CVX code when present (most reliable), else by lowercased
+  // vaccine name, paired with the date.
+  const seen = new Set<string>();
+  const validImmunizations = dateValidImmunizations.filter((imm) => {
+    const key = `${imm.cvxCode ?? imm.vaccine.toLowerCase()}|${imm.date}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
   });
 
   const asOf = patient.asOfDate ? new Date(patient.asOfDate) : new Date();
