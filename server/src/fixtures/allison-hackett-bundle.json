@@ -1,0 +1,171 @@
+{
+  "resourceType": "Bundle",
+  "type": "searchset",
+  "total": 15,
+  "entry": [
+    {
+      "fullUrl": "https://api.healthex.io/FHIR/R4/Person/synthetic-allison-hackett",
+      "resource": {
+        "resourceType": "Person",
+        "id": "synthetic-allison-hackett",
+        "name": [{ "family": "Hackett", "given": ["Allison"], "use": "usual" }],
+        "gender": "female",
+        "birthDate": "1968-04-12T00:00:00.000Z",
+        "link": [
+          { "target": { "reference": "Patient/synthetic-allison-hackett", "assurance": "level4" } }
+        ]
+      }
+    },
+    {
+      "fullUrl": "https://api.healthex.io/FHIR/R4/Condition/cond-htn",
+      "resource": {
+        "resourceType": "Condition",
+        "id": "cond-htn",
+        "clinicalStatus": { "coding": [{ "system": "http://terminology.hl7.org/CodeSystem/condition-clinical", "code": "active", "display": "Active" }] },
+        "code": { "coding": [{ "system": "http://snomed.info/sct", "code": "59621000", "display": "Essential hypertension" }], "text": "Essential hypertension" },
+        "subject": { "reference": "Patient/synthetic-allison-hackett", "display": "Hackett, Allison" },
+        "onsetDateTime": "2018-06-02",
+        "recordedDate": "2018-06-02"
+      }
+    },
+    {
+      "fullUrl": "https://api.healthex.io/FHIR/R4/Condition/cond-t2dm",
+      "resource": {
+        "resourceType": "Condition",
+        "id": "cond-t2dm",
+        "clinicalStatus": { "coding": [{ "system": "http://terminology.hl7.org/CodeSystem/condition-clinical", "code": "active", "display": "Active" }] },
+        "code": { "coding": [{ "system": "http://snomed.info/sct", "code": "44054006", "display": "Type 2 diabetes mellitus" }], "text": "Type 2 diabetes mellitus" },
+        "subject": { "reference": "Patient/synthetic-allison-hackett", "display": "Hackett, Allison" },
+        "onsetDateTime": "2021-11-19",
+        "recordedDate": "2021-11-19"
+      }
+    },
+    {
+      "fullUrl": "https://api.healthex.io/FHIR/R4/AllergyIntolerance/allergy-pcn",
+      "resource": {
+        "resourceType": "AllergyIntolerance",
+        "id": "allergy-pcn",
+        "clinicalStatus": { "coding": [{ "system": "http://terminology.hl7.org/CodeSystem/allergyintolerance-clinical", "code": "active", "display": "Active" }] },
+        "type": "allergy",
+        "criticality": "high",
+        "code": { "coding": [{ "system": "http://www.nlm.nih.gov/research/umls/rxnorm", "code": "7980", "display": "Penicillin" }], "text": "Penicillin" },
+        "patient": { "reference": "Patient/synthetic-allison-hackett", "display": "Hackett, Allison" },
+        "onsetDateTime": "2003-02-14",
+        "reaction": [{ "manifestation": [{ "text": "Anaphylaxis" }], "severity": "severe" }]
+      }
+    },
+    {
+      "fullUrl": "https://api.healthex.io/FHIR/R4/AllergyIntolerance/allergy-shellfish",
+      "resource": {
+        "resourceType": "AllergyIntolerance",
+        "id": "allergy-shellfish",
+        "clinicalStatus": { "coding": [{ "system": "http://terminology.hl7.org/CodeSystem/allergyintolerance-clinical", "code": "active", "display": "Active" }] },
+        "type": "allergy",
+        "criticality": "low",
+        "code": { "coding": [{ "system": "http://snomed.info/sct", "code": "300913006", "display": "Shellfish allergy" }], "text": "Shellfish" },
+        "patient": { "reference": "Patient/synthetic-allison-hackett", "display": "Hackett, Allison" },
+        "onsetDateTime": "2011-08-30",
+        "reaction": [{ "manifestation": [{ "text": "Hives" }], "severity": "mild" }]
+      }
+    },
+    {
+      "fullUrl": "https://api.healthex.io/FHIR/R4/Immunization/imm-tdap-2015",
+      "resource": {
+        "resourceType": "Immunization",
+        "id": "imm-tdap-2015",
+        "status": "completed",
+        "vaccineCode": { "coding": [{ "system": "http://hl7.org/fhir/sid/cvx", "code": "115", "display": "Tdap" }], "text": "Tdap" },
+        "patient": { "reference": "Patient/synthetic-allison-hackett", "display": "Hackett, Allison" },
+        "occurrenceDateTime": "2015-03-10",
+        "lotNumber": "TD2015-081",
+        "site": { "text": "Left arm" },
+        "protocolApplied": [{ "doseNumberPositiveInt": 1 }]
+      }
+    },
+    {
+      "fullUrl": "https://api.healthex.io/FHIR/R4/Immunization/imm-flu-2024",
+      "resource": {
+        "resourceType": "Immunization",
+        "id": "imm-flu-2024",
+        "status": "completed",
+        "vaccineCode": { "coding": [{ "system": "http://hl7.org/fhir/sid/cvx", "code": "150", "display": "Influenza, injectable, quadrivalent" }], "text": "Influenza (Flu)" },
+        "patient": { "reference": "Patient/synthetic-allison-hackett", "display": "Hackett, Allison" },
+        "occurrenceDateTime": "2024-10-08",
+        "lotNumber": "FL2024-772",
+        "site": { "text": "Right arm" },
+        "protocolApplied": [{ "doseNumberPositiveInt": 1 }]
+      }
+    },
+    {
+      "fullUrl": "https://api.healthex.io/FHIR/R4/Immunization/imm-shingrix-dose1",
+      "resource": {
+        "resourceType": "Immunization",
+        "id": "imm-shingrix-dose1",
+        "status": "completed",
+        "vaccineCode": { "coding": [{ "system": "http://hl7.org/fhir/sid/cvx", "code": "187", "display": "Zoster (Shingrix)" }], "text": "Shingrix" },
+        "patient": { "reference": "Patient/synthetic-allison-hackett", "display": "Hackett, Allison" },
+        "occurrenceDateTime": "2021-01-10",
+        "lotNumber": "SH2021-014",
+        "site": { "text": "Left arm" },
+        "protocolApplied": [{ "doseNumberPositiveInt": 1, "seriesDosesPositiveInt": 2 }]
+      }
+    },
+    {
+      "fullUrl": "https://api.healthex.io/FHIR/R4/Observation/obs-bp-2026",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "obs-bp-2026",
+        "status": "final",
+        "category": [{ "coding": [{ "system": "http://terminology.hl7.org/CodeSystem/observation-category", "code": "vital-signs", "display": "Vital Signs" }] }],
+        "code": { "coding": [{ "system": "http://loinc.org", "code": "85354-9", "display": "Blood pressure panel" }], "text": "Blood Pressure" },
+        "subject": { "reference": "Patient/synthetic-allison-hackett", "display": "Hackett, Allison" },
+        "effectiveDateTime": "2026-08-11T14:20:00Z",
+        "component": [
+          { "code": { "text": "Systolic blood pressure" }, "valueQuantity": { "value": 138, "unit": "mm[Hg]" } },
+          { "code": { "text": "Diastolic blood pressure" }, "valueQuantity": { "value": 88, "unit": "mm[Hg]" } }
+        ]
+      }
+    },
+    {
+      "fullUrl": "https://api.healthex.io/FHIR/R4/Observation/obs-hba1c-2026",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "obs-hba1c-2026",
+        "status": "final",
+        "category": [{ "coding": [{ "system": "http://terminology.hl7.org/CodeSystem/observation-category", "code": "laboratory", "display": "Laboratory" }] }],
+        "code": { "coding": [{ "system": "http://loinc.org", "code": "4548-4", "display": "Hemoglobin A1c" }], "text": "Hemoglobin A1c" },
+        "subject": { "reference": "Patient/synthetic-allison-hackett", "display": "Hackett, Allison" },
+        "effectiveDateTime": "2026-08-11T14:20:00Z",
+        "valueQuantity": { "value": 7.1, "unit": "%" },
+        "referenceRange": [{ "text": "4.0 - 5.6 %" }],
+        "interpretation": [{ "text": "High" }]
+      }
+    },
+    {
+      "fullUrl": "https://api.healthex.io/FHIR/R4/Observation/obs-weight-2026",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "obs-weight-2026",
+        "status": "final",
+        "category": [{ "coding": [{ "system": "http://terminology.hl7.org/CodeSystem/observation-category", "code": "vital-signs", "display": "Vital Signs" }] }],
+        "code": { "coding": [{ "system": "http://loinc.org", "code": "29463-7", "display": "Body weight" }], "text": "Weight" },
+        "subject": { "reference": "Patient/synthetic-allison-hackett", "display": "Hackett, Allison" },
+        "effectiveDateTime": "2026-08-11T14:20:00Z",
+        "valueQuantity": { "value": 168, "unit": "lbs" }
+      }
+    },
+    {
+      "fullUrl": "https://api.healthex.io/FHIR/R4/Observation/obs-hr-2026",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "obs-hr-2026",
+        "status": "final",
+        "category": [{ "coding": [{ "system": "http://terminology.hl7.org/CodeSystem/observation-category", "code": "vital-signs", "display": "Vital Signs" }] }],
+        "code": { "coding": [{ "system": "http://loinc.org", "code": "8867-4", "display": "Heart rate" }], "text": "Heart Rate" },
+        "subject": { "reference": "Patient/synthetic-allison-hackett", "display": "Hackett, Allison" },
+        "effectiveDateTime": "2026-08-11T14:20:00Z",
+        "valueQuantity": { "value": 76, "unit": "bpm" }
+      }
+    }
+  ]
+}
