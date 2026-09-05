@@ -1,0 +1,14 @@
+{
+  "name": "immunization-gap-check-skill",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "tsx --test scripts/*.test.ts",
+    "check": "tsx scripts/cli.ts"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}

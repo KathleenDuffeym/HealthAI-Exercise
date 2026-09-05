@@ -1,0 +1,84 @@
+{
+  "source": "CDC Recommended Adult Immunization Schedule, ages 19+ (summarized for demo purposes)",
+  "sourceUrl": "https://www.cdc.gov/vaccines/hcp/imz-schedules/adult-schedule-vaccines.html",
+  "lastReviewed": "2026-09-05",
+  "rules": [
+    {
+      "id": "influenza",
+      "vaccine": "Influenza",
+      "matchHints": ["influenza", "flu"],
+      "minAge": 19,
+      "type": "annual",
+      "intervalMonths": 12,
+      "notes": "Annual dose for all adults, ideally before end of October."
+    },
+    {
+      "id": "tdap-td",
+      "vaccine": "Tdap/Td",
+      "matchHints": ["tdap", "td (tetanus", "tetanus"],
+      "minAge": 19,
+      "type": "primary-then-periodic",
+      "intervalYears": 10,
+      "notes": "One dose of Tdap if never received, then Td or Tdap booster every 10 years."
+    },
+    {
+      "id": "zoster",
+      "vaccine": "Zoster (Shingrix)",
+      "matchHints": ["shingrix", "zoster", "shingles"],
+      "minAge": 50,
+      "type": "series",
+      "seriesDosesTotal": 2,
+      "minIntervalMonthsBetweenDoses": 2,
+      "notes": "2-dose series, doses 2-6 months apart, for all adults 50+."
+    },
+    {
+      "id": "pneumococcal",
+      "vaccine": "Pneumococcal (PCV/PPSV23)",
+      "matchHints": ["pneumococcal", "pcv", "ppsv23", "pneumovax", "prevnar"],
+      "minAge": 65,
+      "riskConditionMinAge": 19,
+      "riskConditionKeywords": ["diabetes", "chronic kidney", "heart disease", "copd", "smoking", "immunocompromis"],
+      "type": "series",
+      "seriesDosesTotal": 1,
+      "notes": "Recommended at 65+ for everyone, or 19-64 with a qualifying chronic condition (e.g. diabetes)."
+    },
+    {
+      "id": "hepatitis-b",
+      "vaccine": "Hepatitis B",
+      "matchHints": ["hepatitis b", "hep b", "hepb"],
+      "minAge": 19,
+      "maxAge": 59,
+      "type": "series",
+      "seriesDosesTotal": 3,
+      "notes": "Universal recommendation for adults 19-59 without prior vaccination/immunity (ACIP 2022 update). 60+ is risk-based shared decision-making."
+    },
+    {
+      "id": "covid-19",
+      "vaccine": "COVID-19",
+      "matchHints": ["covid", "sars-cov-2"],
+      "minAge": 19,
+      "type": "shared-decision",
+      "intervalMonths": 12,
+      "notes": "Shared clinical decision-making for most adults; strongest benefit for 65+ or immunocompromised."
+    },
+    {
+      "id": "mmr",
+      "vaccine": "MMR (Measles, Mumps, Rubella)",
+      "matchHints": ["mmr", "measles", "mumps", "rubella"],
+      "minAge": 19,
+      "type": "verify-history",
+      "presumedImmuneBornBefore": "1957-01-01",
+      "seriesDosesTotal": 2,
+      "notes": "Adults born in/after 1957 need documented evidence of 2 doses or immunity; missing records are common and should be verified with the patient/provider, not assumed absent."
+    },
+    {
+      "id": "varicella",
+      "vaccine": "Varicella (Chickenpox)",
+      "matchHints": ["varicella", "chickenpox"],
+      "minAge": 19,
+      "type": "verify-history",
+      "seriesDosesTotal": 2,
+      "notes": "Adults without evidence of immunity or disease history need 2 doses; missing records are common and should be verified, not assumed absent."
+    }
+  ]
+}
